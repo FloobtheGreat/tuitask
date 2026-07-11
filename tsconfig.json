@@ -17,5 +17,11 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "tests", "vitest.config.ts", "eslint.config.js"]
+  "include": [
+    "src",
+    "tests",
+    "vitest.config.ts",
+    "drizzle.config.ts",
+    "eslint.config.js"
+  ]
 }

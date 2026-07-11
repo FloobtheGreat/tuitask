@@ -1,0 +1,70 @@
+import {describe, expect, it} from 'vitest';
+import {InvalidDueDateError, parseDueDate} from '../../src/domain/dates.js';
+import {normalizeTaskInput} from '../../src/domain/validation.js';
+
+const now = new Date(2026, 11, 31, 23, 30);
+
+describe('task validation', () => {
+  it('normalizes title, description, and a canonical date', () => {
+    expect(
+      normalizeTaskInput(
+        {
+          title: '  Write tests  ',
+          description: '  first line\nsecond line  ',
+          priority: 3,
+          dueDate: '2027-01-02',
+        },
+        now,
+      ),
+    ).toEqual({
+      title: 'Write tests',
+      description: 'first line\nsecond line',
+      priority: 3,
+      dueDate: '2027-01-02',
+    });
+  });
+
+  it('turns blank optional text into null', () => {
+    const result = normalizeTaskInput(
+      {title: 'Task', description: ' \n ', priority: null, dueDate: ' '},
+      now,
+    );
+    expect(result.description).toBeNull();
+    expect(result.dueDate).toBeNull();
+  });
+
+  it('rejects blank titles and invalid priorities', () => {
+    expect(() =>
+      normalizeTaskInput({
+        title: '  ',
+        description: null,
+        priority: null,
+        dueDate: null,
+      }),
+    ).toThrow('Title is required');
+    expect(() =>
+      normalizeTaskInput({
+        title: 'Task',
+        description: null,
+        // @ts-expect-error Testing runtime validation.
+        priority: 4,
+        dueDate: null,
+      }),
+    ).toThrow();
+  });
+});
+
+describe('due-date parsing', () => {
+  it('parses today and tomorrow across a year boundary', () => {
+    expect(parseDueDate('today', now)).toBe('2026-12-31');
+    expect(parseDueDate('tomorrow', now)).toBe('2027-01-01');
+  });
+
+  it.each(['2026-02-30', '2026-2-03', 'next week'])('rejects %s', (value) => {
+    expect(() => parseDueDate(value, now)).toThrow(InvalidDueDateError);
+  });
+
+  it('allows past calendar dates', () => {
+    expect(parseDueDate('2020-01-01', now)).toBe('2020-01-01');
+  });
+});
