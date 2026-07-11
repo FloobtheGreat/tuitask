@@ -1,0 +1,56 @@
+{
+  "name": "tuitask",
+  "version": "0.0.1",
+  "description": "A local-first terminal task manager",
+  "type": "module",
+  "bin": {
+    "tuitask": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.tsx",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "verify": "npm run typecheck && npm run lint && npm run format && npm test && npm run build"
+  },
+  "keywords": [
+    "cli",
+    "ink",
+    "tasks",
+    "todo"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "ink": "^7.1.0",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "ink-testing-library": "^4.0.0",
+    "prettier": "^3.7.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1",
+    "vitest": "^4.0.15"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}
