@@ -10,7 +10,14 @@ export type AppState = {
 export type AppAction =
   | {type: 'select'; taskId: number}
   | {type: 'move-selection'; offset: -1 | 1; visibleTasks: readonly Task[]}
-  | {type: 'cycle-filter'; visibleTasks: readonly Task[]};
+  | {type: 'cycle-filter'; visibleTasks: readonly Task[]}
+  | {
+      type: 'replace-tasks';
+      tasks: Task[];
+      selectedTaskId: number;
+      filter?: TaskFilter;
+      error?: string | null;
+    };
 
 export const FILTERS: readonly TaskFilter[] = ['active', 'completed', 'all'];
 
@@ -47,6 +54,15 @@ export function nextFilter(filter: TaskFilter): TaskFilter {
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
+  if (action.type === 'replace-tasks') {
+    return {
+      ...state,
+      tasks: action.tasks,
+      filter: action.filter ?? state.filter,
+      selectedTaskId: action.selectedTaskId,
+      error: action.error ?? null,
+    };
+  }
   if (action.type === 'select') {
     return {...state, selectedTaskId: action.taskId};
   }

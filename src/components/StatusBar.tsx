@@ -8,5 +8,9 @@ export function StatusBar({
   error: string | null;
 }) {
   if (error !== null) return <Text color="red">Error: {error}</Text>;
-  return <Text dimColor>{count} task(s) ↑/↓ or j/k Move f Filter q Quit</Text>;
+  return (
+    <Text dimColor>
+      {count} task(s) ↑/↓ or j/k Move a Add e Edit f Filter q Quit
+    </Text>
+  );
 }
