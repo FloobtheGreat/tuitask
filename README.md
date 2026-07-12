@@ -1,6 +1,6 @@
 # tuitask
 
-`tuitask` is a local-first terminal task manager built with TypeScript, React, Ink, and SQLite. Tasks support multiline descriptions, priorities, date-only due dates, completion tracking, automatic ordering, and Active, Completed, and All views.
+`tuitask` is a local-first terminal task manager built with TypeScript, React, Ink, and SQLite. Tasks support multiline descriptions, priorities, date-only due dates, completion tracking, automatic ordering, and Active, Completed, and All views. This is all AI.
 
 ## Requirements
 
