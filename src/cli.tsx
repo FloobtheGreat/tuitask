@@ -9,7 +9,9 @@ import {SQLiteTaskRepository} from './db/taskRepository.js';
 async function main(): Promise<void> {
   const connection = openDatabase();
   const repository = new SQLiteTaskRepository(connection.database);
-  const instance = render(<App repository={repository} />);
+  const instance = render(<App repository={repository} />, {
+    alternateScreen: true,
+  });
   const shutdown = () => {
     instance.unmount();
   };

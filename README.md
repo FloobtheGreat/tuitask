@@ -20,6 +20,8 @@ tuitask
 
 For development, use `npm run dev`. Run `npm run verify` before contributing; it checks types, linting, formatting, tests, and the production build.
 
+`tuitask` runs in the terminal's alternate screen buffer, so your previous terminal contents are restored when the app exits. Terminal scrollback is unavailable while the app is running.
+
 ## Keybindings
 
 Main list:
