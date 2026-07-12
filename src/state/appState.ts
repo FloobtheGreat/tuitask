@@ -14,7 +14,7 @@ export type AppAction =
   | {
       type: 'replace-tasks';
       tasks: Task[];
-      selectedTaskId: number;
+      selectedTaskId: number | null;
       filter?: TaskFilter;
       error?: string | null;
     };

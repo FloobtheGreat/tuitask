@@ -1,6 +1,7 @@
-import {useMemo, useReducer, useState} from 'react';
+import {useEffect, useMemo, useReducer, useState} from 'react';
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {FilterBar} from './components/FilterBar.js';
+import {ConfirmDialog} from './components/ConfirmDialog.js';
 import {StatusBar} from './components/StatusBar.js';
 import {TaskDetails} from './components/TaskDetails.js';
 import {TaskList} from './components/TaskList.js';
@@ -16,7 +17,11 @@ import {
 
 type Dimensions = {columns: number; rows: number};
 type Props = {repository: TaskRepository; now?: Date; dimensions?: Dimensions};
-type Screen = {name: 'list'} | {name: 'add'} | {name: 'edit'; taskId: number};
+type Screen =
+  | {name: 'list'}
+  | {name: 'add'}
+  | {name: 'edit'; taskId: number}
+  | {name: 'confirm-delete'; taskId: number};
 
 export function App({repository, now = new Date(), dimensions}: Props) {
   const {exit} = useApp();
@@ -49,6 +54,15 @@ export function App({repository, now = new Date(), dimensions}: Props) {
   const selectedTask =
     visibleTasks.find(({id}) => id === state.selectedTaskId) ?? null;
 
+  useEffect(() => {
+    if (
+      screen.name === 'confirm-delete' &&
+      !state.tasks.some(({id}) => id === screen.taskId)
+    ) {
+      setScreen({name: 'list'});
+    }
+  }, [screen, state.tasks]);
+
   useInput(
     (input, key) => {
       if (input === 'q') exit();
@@ -70,6 +84,55 @@ export function App({repository, now = new Date(), dimensions}: Props) {
       if (input === 'e' && selectedTask !== null) {
         setScreen({name: 'edit', taskId: selectedTask.id});
       }
+      if (input === ' ' && selectedTask !== null) {
+        const previousIndex = visibleTasks.findIndex(
+          ({id}) => id === selectedTask.id,
+        );
+        try {
+          const saved = repository.setCompleted(
+            selectedTask.id,
+            selectedTask.completedAt === null,
+          );
+          const tasks = [
+            ...state.tasks.filter(({id}) => id !== saved.id),
+            saved,
+          ];
+          const nextTasks = filterAndSortTasks(tasks, state.filter, now);
+          dispatch({
+            type: 'replace-tasks',
+            tasks,
+            selectedTaskId: recoverSelection(
+              nextTasks,
+              saved.id,
+              previousIndex,
+            ),
+          });
+        } catch (error) {
+          let tasks = state.tasks;
+          try {
+            tasks = repository.list();
+          } catch {
+            // Keep the last known persisted view when a refresh also fails.
+          }
+          const nextTasks = filterAndSortTasks(tasks, state.filter, now);
+          dispatch({
+            type: 'replace-tasks',
+            tasks,
+            selectedTaskId: recoverSelection(
+              nextTasks,
+              state.selectedTaskId,
+              previousIndex,
+            ),
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to update task status',
+          });
+        }
+      }
+      if (input === 'd' && selectedTask !== null) {
+        setScreen({name: 'confirm-delete', taskId: selectedTask.id});
+      }
     },
     {isActive: screen.name === 'list'},
   );
@@ -79,6 +142,65 @@ export function App({repository, now = new Date(), dimensions}: Props) {
   }
 
   if (screen.name !== 'list') {
+    if (screen.name === 'confirm-delete') {
+      const task = state.tasks.find(({id}) => id === screen.taskId);
+      if (task === undefined) {
+        return null;
+      }
+      const previousIndex = visibleTasks.findIndex(({id}) => id === task.id);
+      return (
+        <Box flexDirection="column">
+          <Text bold color="cyan">
+            tuitask
+          </Text>
+          <ConfirmDialog
+            task={task}
+            onCancel={() => setScreen({name: 'list'})}
+            onConfirm={() => {
+              try {
+                if (!repository.delete(task.id)) {
+                  const tasks = repository.list();
+                  const nextTasks = filterAndSortTasks(
+                    tasks,
+                    state.filter,
+                    now,
+                  );
+                  dispatch({
+                    type: 'replace-tasks',
+                    tasks,
+                    selectedTaskId: recoverSelection(
+                      nextTasks,
+                      null,
+                      previousIndex,
+                    ),
+                    error: `Task ${task.id} was not found`,
+                  });
+                  setScreen({name: 'list'});
+                  return null;
+                }
+                const tasks = state.tasks.filter(({id}) => id !== task.id);
+                const nextTasks = filterAndSortTasks(tasks, state.filter, now);
+                dispatch({
+                  type: 'replace-tasks',
+                  tasks,
+                  selectedTaskId: recoverSelection(
+                    nextTasks,
+                    null,
+                    previousIndex,
+                  ),
+                });
+                setScreen({name: 'list'});
+                return null;
+              } catch (error) {
+                return error instanceof Error
+                  ? error.message
+                  : 'Unable to delete task';
+              }
+            }}
+          />
+        </Box>
+      );
+    }
     const editedTask =
       screen.name === 'edit'
         ? state.tasks.find(({id}) => id === screen.taskId)

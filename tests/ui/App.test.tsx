@@ -214,4 +214,111 @@ describe('App', () => {
     expect(create).not.toHaveBeenCalled();
     view.unmount();
   });
+
+  it('completes an active task, restores selection, and shows its completion date', async () => {
+    const first = task({id: 1, title: 'Finish me'});
+    const second = task({id: 2, title: 'Stay active'});
+    const completed = {...first, completedAt: '2026-07-11T17:00:00.000Z'};
+    const setCompleted = vi
+      .fn<TaskRepository['setCompleted']>()
+      .mockReturnValue(completed);
+    const repo = {...repository([first, second]), setCompleted};
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+
+    await send(view, ' ');
+    expect(setCompleted).toHaveBeenCalledWith(1, true);
+    await expect.poll(() => view.lastFrame()).not.toContain('Finish me');
+    expect(view.lastFrame()).toContain('Stay active');
+    await send(view, 'f');
+    await expect.poll(() => view.lastFrame()).toContain('Finish me');
+    expect(view.lastFrame()).toContain('Completed: Jul 11, 2026');
+    view.unmount();
+  });
+
+  it('reopens a task and removes it from Completed', async () => {
+    const completed = task({
+      id: 1,
+      title: 'Reopen me',
+      completedAt: '2026-07-11T17:00:00.000Z',
+    });
+    const reopened = {...completed, completedAt: null};
+    const setCompleted = vi
+      .fn<TaskRepository['setCompleted']>()
+      .mockReturnValue(reopened);
+    const repo = {...repository([completed]), setCompleted};
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+    await send(view, 'f');
+    await send(view, ' ');
+
+    expect(setCompleted).toHaveBeenCalledWith(1, false);
+    await expect.poll(() => view.lastFrame()).toContain('No completed tasks.');
+    view.unmount();
+  });
+
+  it('keeps a completed task selected in All', async () => {
+    const original = task({id: 1, title: 'Complete in All'});
+    const completed = {
+      ...original,
+      completedAt: '2026-07-11T17:00:00.000Z',
+    };
+    const setCompleted = vi
+      .fn<TaskRepository['setCompleted']>()
+      .mockReturnValue(completed);
+    const repo = {...repository([original]), setCompleted};
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+    await send(view, 'f');
+    await send(view, 'f');
+    await send(view, ' ');
+
+    await expect.poll(() => view.lastFrame()).toContain('Complete in All');
+    expect(view.lastFrame()).toContain('Status: Completed');
+    view.unmount();
+  });
+
+  it('defaults delete confirmation to cancel, then explicitly deletes', async () => {
+    const first = task({id: 1, title: 'Delete me'});
+    const second = task({id: 2, title: 'Keep me'});
+    const remove = vi.fn<TaskRepository['delete']>().mockReturnValue(true);
+    const repo = {...repository([first, second]), delete: remove};
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+
+    await send(view, 'd');
+    await expect.poll(() => view.lastFrame()).toContain('Delete task?');
+    await send(view, '\r');
+    expect(remove).not.toHaveBeenCalled();
+    await expect.poll(() => view.lastFrame()).toContain('Delete me');
+    await send(view, 'd');
+    await send(view, 'y');
+
+    expect(remove).toHaveBeenCalledWith(1);
+    await expect.poll(() => view.lastFrame()).not.toContain('Delete me');
+    expect(view.lastFrame()).toContain('Keep me');
+    view.unmount();
+  });
+
+  it('keeps persisted state visible after a completion error', async () => {
+    const original = task({id: 1, title: 'Still active'});
+    const setCompleted = vi
+      .fn<TaskRepository['setCompleted']>()
+      .mockImplementation(() => {
+        throw new Error('Database is busy');
+      });
+    const repo = {...repository([original]), setCompleted};
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+
+    await send(view, ' ');
+    await expect.poll(() => view.lastFrame()).toContain('Database is busy');
+    expect(view.lastFrame()).toContain('Still active');
+    view.unmount();
+  });
 });

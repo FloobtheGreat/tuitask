@@ -10,7 +10,8 @@ export function StatusBar({
   if (error !== null) return <Text color="red">Error: {error}</Text>;
   return (
     <Text dimColor>
-      {count} task(s) ↑/↓ or j/k Move a Add e Edit f Filter q Quit
+      {count} task(s) ↑/↓ Move a Add e Edit Space Complete d Delete f Filter q
+      Quit
     </Text>
   );
 }
