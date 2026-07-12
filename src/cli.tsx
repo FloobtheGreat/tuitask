@@ -4,10 +4,12 @@ import process from 'node:process';
 import {render} from 'ink';
 import {App} from './App.js';
 import {openDatabase} from './db/client.js';
+import {SQLiteTaskRepository} from './db/taskRepository.js';
 
 async function main(): Promise<void> {
   const connection = openDatabase();
-  const instance = render(<App />);
+  const repository = new SQLiteTaskRepository(connection.database);
+  const instance = render(<App repository={repository} />);
   const shutdown = () => {
     instance.unmount();
   };
