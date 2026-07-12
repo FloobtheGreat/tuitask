@@ -366,4 +366,46 @@ describe('App', () => {
     expect(view.lastFrame()).toContain('more above');
     view.unmount();
   });
+
+  it('labels active tasks due today without marking completed tasks', async () => {
+    const dueToday = task({
+      id: 1,
+      title: 'Due now',
+      dueDate: '2026-07-11',
+    });
+    const completed = task({
+      id: 2,
+      title: 'Already done',
+      dueDate: '2026-07-11',
+      completedAt: '2026-07-11T17:00:00.000Z',
+    });
+    const view = render(
+      <App
+        repository={repository([dueToday, completed])}
+        now={now}
+        dimensions={{columns: 100, rows: 30}}
+      />,
+    );
+    expect(view.lastFrame()).toContain('Due now DUE TODAY');
+    await send(view, 'f');
+    await expect.poll(() => view.lastFrame()).toContain('Already done');
+    expect(view.lastFrame()).not.toContain('DUE TODAY');
+    view.unmount();
+  });
+
+  it('explains how to change priority when the field is focused', async () => {
+    const view = render(
+      <App
+        repository={repository([])}
+        now={now}
+        dimensions={{columns: 40, rows: 20}}
+      />,
+    );
+    await send(view, 'a');
+    await send(view, '\t');
+    await send(view, '\t');
+    expect(view.lastFrame()).toContain('Left/Right or Space to change');
+    expect(view.lastFrame()).toContain('priority');
+    view.unmount();
+  });
 });

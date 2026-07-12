@@ -1,5 +1,9 @@
 import {describe, expect, it} from 'vitest';
-import {filterAndSortTasks, isOverdue} from '../../src/domain/sorting.js';
+import {
+  filterAndSortTasks,
+  isDueToday,
+  isOverdue,
+} from '../../src/domain/sorting.js';
 import type {Task} from '../../src/domain/task.js';
 
 const now = new Date(2026, 6, 10, 12);
@@ -104,5 +108,29 @@ describe('overdue status', () => {
         now,
       ),
     ).toBe(false);
+  });
+
+  it('only marks active tasks due on the local calendar date as due today', () => {
+    expect(
+      isDueToday(task({id: 1, title: 'today', dueDate: '2026-07-10'}), now),
+    ).toBe(true);
+    expect(
+      isDueToday(
+        task({
+          id: 2,
+          title: 'completed today',
+          dueDate: '2026-07-10',
+          completedAt: '2026-07-10T12:00:00.000Z',
+        }),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isDueToday(task({id: 3, title: 'past', dueDate: '2026-07-09'}), now),
+    ).toBe(false);
+    expect(
+      isDueToday(task({id: 4, title: 'future', dueDate: '2026-07-11'}), now),
+    ).toBe(false);
+    expect(isDueToday(task({id: 5, title: 'undated'}), now)).toBe(false);
   });
 });

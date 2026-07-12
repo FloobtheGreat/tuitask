@@ -42,6 +42,8 @@ Delete confirmation defaults to Cancel. Press `y` to confirm, `n` or Esc to canc
 
 Due dates accept `YYYY-MM-DD`, `today`, `tomorrow`, or blank for no due date. Dates are interpreted in the local timezone.
 
+Active tasks due today are labeled `DUE TODAY` and shown in yellow. Overdue tasks are labeled `OVERDUE` and shown in red. The text labels remain meaningful in terminals without color support.
+
 ## Data storage
 
 The SQLite database is created and migrated automatically. Its default location is:

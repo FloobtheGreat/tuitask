@@ -115,6 +115,9 @@ export function TaskForm({task, now, onSave, onCancel}: Props) {
         {marker('priority')} Priority:{' '}
         {priority === null ? 'None' : PRIORITY_NAMES[priority]}
       </Text>
+      {field === 'priority' && (
+        <Text dimColor> Left/Right or Space to change priority</Text>
+      )}
       <Text inverse={field === 'dueDate'}>
         {marker('dueDate')} Due date: {dueDate}
       </Text>

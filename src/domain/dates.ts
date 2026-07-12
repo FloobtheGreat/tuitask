@@ -44,3 +44,7 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
     task.dueDate < localCalendarDate(now)
   );
 }
+
+export function isDueToday(task: Task, now: Date = new Date()): boolean {
+  return task.completedAt === null && task.dueDate === localCalendarDate(now);
+}

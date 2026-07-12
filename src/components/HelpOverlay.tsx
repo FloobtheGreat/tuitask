@@ -16,6 +16,7 @@ export function HelpOverlay({onClose}: {onClose: () => void}) {
       <Text bold>Forms</Text>
       <Text>Tab/Shift+Tab Move Enter Select Esc Cancel</Text>
       <Text>Priority: arrows or Space Description: Enter adds a line</Text>
+      <Text>Yellow DUE TODAY Red OVERDUE</Text>
       <Text bold>Delete</Text>
       <Text>y Confirm n/Esc Cancel Tab Choose Enter Select</Text>
       <Text dimColor>Press ? or Esc to close help.</Text>

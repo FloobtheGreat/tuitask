@@ -1,4 +1,4 @@
-import {isOverdue, localCalendarDate} from './dates.js';
+import {isDueToday, isOverdue, localCalendarDate} from './dates.js';
 import type {Task, TaskFilter} from './task.js';
 
 function comparePriority(left: Task, right: Task): number {
@@ -68,4 +68,4 @@ export function filterAndSortTasks(
   return [...active, ...completed];
 }
 
-export {isOverdue};
+export {isDueToday, isOverdue};
