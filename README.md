@@ -35,6 +35,7 @@ Main list:
 | Space      | Complete or reopen selected task        |
 | `d`        | Delete selected task after confirmation |
 | `f`        | Cycle Active, Completed, and All        |
+| `c`        | Copy filtered tasks as CSV              |
 | `?`        | Open help                               |
 | `q`        | Quit                                    |
 

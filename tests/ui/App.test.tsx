@@ -1,6 +1,7 @@
 import {render} from 'ink-testing-library';
 import {describe, expect, it, vi} from 'vitest';
 import {App} from '../../src/App.js';
+import type {ClipboardWriter} from '../../src/clipboard.js';
 import type {Task, TaskRepository} from '../../src/domain/task.js';
 
 const now = new Date(2026, 6, 11, 12);
@@ -83,6 +84,65 @@ describe('App', () => {
     view.stdin.write('f');
     await expect.poll(() => view.lastFrame()).toContain('Active task');
     expect(view.lastFrame()).toContain('Finished task');
+    view.unmount();
+  });
+
+  it('copies the filtered tasks as CSV in displayed order', async () => {
+    const writeText = vi.fn<ClipboardWriter['writeText']>().mockResolvedValue();
+    const firstActive = task({id: 1, title: 'Active, first'});
+    const secondActive = task({id: 3, title: 'Active second'});
+    const completed = task({
+      id: 2,
+      title: 'Finished',
+      completedAt: '2026-07-10T15:00:00.000Z',
+    });
+    const view = render(
+      <App
+        repository={repository([completed, secondActive, firstActive])}
+        clipboard={{writeText}}
+        now={now}
+        dimensions={{columns: 100, rows: 30}}
+      />,
+    );
+
+    await send(view, 'c');
+    await expect.poll(() => writeText).toHaveBeenCalledOnce();
+    const csv = writeText.mock.calls[0]?.[0] ?? '';
+    expect(csv).toContain('id,title,description,priority');
+    expect(csv).toContain('1,"Active, first"');
+    expect(csv.indexOf('Active, first')).toBeLessThan(
+      csv.indexOf('Active second'),
+    );
+    expect(csv).not.toContain('Finished');
+    await expect
+      .poll(() => view.lastFrame())
+      .toContain('Copied 2 task(s) to clipboard');
+    view.unmount();
+  });
+
+  it('copies headers for an empty view and reports clipboard failures', async () => {
+    const writeText = vi
+      .fn<ClipboardWriter['writeText']>()
+      .mockRejectedValue(new Error('Clipboard unavailable'));
+    const view = render(
+      <App
+        repository={repository([])}
+        clipboard={{writeText}}
+        now={now}
+        dimensions={{columns: 100, rows: 30}}
+      />,
+    );
+
+    await send(view, 'c');
+    await expect
+      .poll(() => writeText)
+      .toHaveBeenCalledWith(
+        'id,title,description,priority,dueDate,completedAt,createdAt,updatedAt\r\n',
+      );
+    await expect
+      .poll(() => view.lastFrame())
+      .toContain('Unable to copy tasks: Clipboard unavailable');
+    expect(view.lastFrame()).toContain('No active tasks.');
     view.unmount();
   });
 
@@ -335,6 +395,7 @@ describe('App', () => {
     expect(view.lastFrame()).toContain('a Add');
     expect(view.lastFrame()).toContain('Space Complete or reopen');
     expect(view.lastFrame()).toContain('d Delete');
+    expect(view.lastFrame()).toContain('c Copy CSV');
     expect(view.lastFrame()).toContain('? Help q Quit');
     await send(view, '?');
     await expect.poll(() => view.lastFrame()).toContain('No active tasks.');

@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useReducer, useState} from 'react';
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
+import {systemClipboard, type ClipboardWriter} from './clipboard.js';
 import {FilterBar} from './components/FilterBar.js';
 import {ConfirmDialog} from './components/ConfirmDialog.js';
 import {HelpOverlay} from './components/HelpOverlay.js';
@@ -8,6 +9,7 @@ import {TaskDetails} from './components/TaskDetails.js';
 import {TaskList} from './components/TaskList.js';
 import {TaskForm} from './components/TaskForm.js';
 import {filterAndSortTasks} from './domain/sorting.js';
+import {tasksToCsv} from './domain/csv.js';
 import type {TaskRepository} from './domain/task.js';
 import {
   appReducer,
@@ -17,7 +19,12 @@ import {
 } from './state/appState.js';
 
 type Dimensions = {columns: number; rows: number};
-type Props = {repository: TaskRepository; now?: Date; dimensions?: Dimensions};
+type Props = {
+  repository: TaskRepository;
+  now?: Date;
+  dimensions?: Dimensions;
+  clipboard?: ClipboardWriter;
+};
 type Screen =
   | {name: 'list'}
   | {name: 'add'}
@@ -25,11 +32,20 @@ type Screen =
   | {name: 'confirm-delete'; taskId: number}
   | {name: 'help'};
 
-export function App({repository, now = new Date(), dimensions}: Props) {
+export function App({
+  repository,
+  now = new Date(),
+  dimensions,
+  clipboard = systemClipboard,
+}: Props) {
   const {exit} = useApp();
   const windowSize = useWindowSize();
   const size = dimensions ?? windowSize;
   const [screen, setScreen] = useState<Screen>({name: 'list'});
+  const [copyResult, setCopyResult] = useState<{
+    message: string;
+    isError: boolean;
+  } | null>(null);
   const [state, dispatch] = useReducer(appReducer, undefined, (): AppState => {
     try {
       const tasks = repository.list();
@@ -67,6 +83,7 @@ export function App({repository, now = new Date(), dimensions}: Props) {
 
   useInput(
     (input, key) => {
+      if (input !== 'c') setCopyResult(null);
       if (input === 'q') exit();
       if (key.upArrow || input === 'k') {
         dispatch({type: 'move-selection', offset: -1, visibleTasks});
@@ -81,6 +98,26 @@ export function App({repository, now = new Date(), dimensions}: Props) {
           now,
         );
         dispatch({type: 'cycle-filter', visibleTasks: nextTasks});
+      }
+      if (input === 'c') {
+        void clipboard.writeText(tasksToCsv(visibleTasks)).then(
+          () => {
+            setCopyResult({
+              message: `Copied ${visibleTasks.length} task(s) to clipboard`,
+              isError: false,
+            });
+          },
+          (error: unknown) => {
+            const reason =
+              error instanceof Error
+                ? error.message
+                : 'Unknown clipboard error';
+            setCopyResult({
+              message: `Unable to copy tasks: ${reason}`,
+              isError: true,
+            });
+          },
+        );
       }
       if (input === 'a') setScreen({name: 'add'});
       if (input === 'e' && selectedTask !== null) {
@@ -279,7 +316,12 @@ export function App({repository, now = new Date(), dimensions}: Props) {
         </Box>
       </Box>
       <FilterBar filter={state.filter} />
-      <StatusBar count={visibleTasks.length} error={state.error} />
+      <StatusBar
+        count={visibleTasks.length}
+        error={state.error}
+        message={copyResult?.message ?? null}
+        messageIsError={copyResult?.isError ?? false}
+      />
     </Box>
   );
 }

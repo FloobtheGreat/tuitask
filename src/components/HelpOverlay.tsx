@@ -11,7 +11,7 @@ export function HelpOverlay({onClose}: {onClose: () => void}) {
       <Text bold>Main list</Text>
       <Text>Up/k Previous task Down/j Next task</Text>
       <Text>a Add e Edit Space Complete or reopen</Text>
-      <Text>d Delete f Cycle Active, Completed, All</Text>
+      <Text>d Delete f Cycle Active, Completed, All c Copy CSV</Text>
       <Text>? Help q Quit</Text>
       <Text bold>Forms</Text>
       <Text>Tab/Shift+Tab Move Enter Select Esc Cancel</Text>
