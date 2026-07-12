@@ -2,6 +2,7 @@ import {useEffect, useMemo, useReducer, useState} from 'react';
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {FilterBar} from './components/FilterBar.js';
 import {ConfirmDialog} from './components/ConfirmDialog.js';
+import {HelpOverlay} from './components/HelpOverlay.js';
 import {StatusBar} from './components/StatusBar.js';
 import {TaskDetails} from './components/TaskDetails.js';
 import {TaskList} from './components/TaskList.js';
@@ -21,7 +22,8 @@ type Screen =
   | {name: 'list'}
   | {name: 'add'}
   | {name: 'edit'; taskId: number}
-  | {name: 'confirm-delete'; taskId: number};
+  | {name: 'confirm-delete'; taskId: number}
+  | {name: 'help'};
 
 export function App({repository, now = new Date(), dimensions}: Props) {
   const {exit} = useApp();
@@ -133,6 +135,7 @@ export function App({repository, now = new Date(), dimensions}: Props) {
       if (input === 'd' && selectedTask !== null) {
         setScreen({name: 'confirm-delete', taskId: selectedTask.id});
       }
+      if (input === '?') setScreen({name: 'help'});
     },
     {isActive: screen.name === 'list'},
   );
@@ -142,6 +145,9 @@ export function App({repository, now = new Date(), dimensions}: Props) {
   }
 
   if (screen.name !== 'list') {
+    if (screen.name === 'help') {
+      return <HelpOverlay onClose={() => setScreen({name: 'list'})} />;
+    }
     if (screen.name === 'confirm-delete') {
       const task = state.tasks.find(({id}) => id === screen.taskId);
       if (task === undefined) {
@@ -244,6 +250,14 @@ export function App({repository, now = new Date(), dimensions}: Props) {
   }
 
   const wide = size.columns >= 90;
+  const maxListItems = Math.max(
+    1,
+    wide ? size.rows - 9 : Math.floor(size.rows / 3),
+  );
+  const maxTitleLength = Math.max(
+    10,
+    (wide ? Math.floor(size.columns / 2) : size.columns) - 32,
+  );
   return (
     <Box flexDirection="column">
       <Text bold color="cyan">
@@ -256,6 +270,8 @@ export function App({repository, now = new Date(), dimensions}: Props) {
             filter={state.filter}
             selectedTaskId={state.selectedTaskId}
             now={now}
+            maxItems={maxListItems}
+            maxTitleLength={maxTitleLength}
           />
         </Box>
         <Box width={wide ? '50%' : '100%'}>

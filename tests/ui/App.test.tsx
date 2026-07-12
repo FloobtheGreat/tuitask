@@ -321,4 +321,49 @@ describe('App', () => {
     expect(view.lastFrame()).toContain('Still active');
     view.unmount();
   });
+
+  it('opens and closes help with every main shortcut documented', async () => {
+    const view = render(
+      <App
+        repository={repository([])}
+        now={now}
+        dimensions={{columns: 100, rows: 30}}
+      />,
+    );
+    await send(view, '?');
+    await expect.poll(() => view.lastFrame()).toContain('tuitask help');
+    expect(view.lastFrame()).toContain('a Add');
+    expect(view.lastFrame()).toContain('Space Complete or reopen');
+    expect(view.lastFrame()).toContain('d Delete');
+    expect(view.lastFrame()).toContain('? Help q Quit');
+    await send(view, '?');
+    await expect.poll(() => view.lastFrame()).toContain('No active tasks.');
+    view.unmount();
+  });
+
+  it('truncates long list titles, preserves full details, and windows long lists', async () => {
+    const longTitle = 'A very long task title that cannot fit in the list pane';
+    const tasks = [
+      task({id: 1, title: longTitle}),
+      ...Array.from({length: 7}, (_, index) =>
+        task({id: index + 2, title: `Task ${index + 2}`}),
+      ),
+    ];
+    const view = render(
+      <App
+        repository={repository(tasks)}
+        now={now}
+        dimensions={{columns: 90, rows: 12}}
+      />,
+    );
+    expect(view.lastFrame()).toContain('A very lon...');
+    expect(view.lastFrame()).toContain(
+      'A very long task title that cannot fit in the',
+    );
+    expect(view.lastFrame()).toContain('list pane');
+    expect(view.lastFrame()).toContain('more below');
+    for (let index = 0; index < 5; index += 1) await send(view, 'j');
+    expect(view.lastFrame()).toContain('more above');
+    view.unmount();
+  });
 });
