@@ -18,7 +18,7 @@ export function StatusBar({
   return (
     <Text dimColor>
       {count} task(s) ↑/↓ Move a Add e Edit Space Complete d Delete f Filter c
-      Copy ? Help q Quit
+      Copy p Projects ? Help q Quit
     </Text>
   );
 }

@@ -10,6 +10,7 @@ const now = new Date(2026, 6, 10, 12);
 
 function task(overrides: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {
   return {
+    projectId: 1,
     description: null,
     priority: null,
     dueDate: null,

@@ -2,10 +2,18 @@ import {render} from 'ink-testing-library';
 import {describe, expect, it, vi} from 'vitest';
 import {App} from '../../src/App.js';
 import type {ClipboardWriter} from '../../src/clipboard.js';
+import type {Project, ProjectRepository} from '../../src/domain/project.js';
 import type {Task, TaskRepository} from '../../src/domain/task.js';
 
 const now = new Date(2026, 6, 11, 12);
+const inbox: Project = {
+  id: 1,
+  name: 'Inbox',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
 const task = (overrides: Partial<Task> & Pick<Task, 'id' | 'title'>): Task => ({
+  projectId: 1,
   description: null,
   priority: null,
   dueDate: null,
@@ -15,7 +23,10 @@ const task = (overrides: Partial<Task> & Pick<Task, 'id' | 'title'>): Task => ({
   ...overrides,
 });
 
-function repository(tasks: Task[]): TaskRepository {
+function repository(
+  tasks: Task[],
+  projects: Project[] = [inbox],
+): TaskRepository & ProjectRepository {
   return {
     list: () => tasks,
     getById: vi.fn(),
@@ -23,6 +34,10 @@ function repository(tasks: Task[]): TaskRepository {
     update: vi.fn(),
     setCompleted: vi.fn(),
     delete: vi.fn(),
+    listProjects: () => projects,
+    createProject: vi.fn(),
+    updateProject: vi.fn(),
+    deleteProject: vi.fn(),
   };
 }
 
@@ -87,6 +102,121 @@ describe('App', () => {
     view.unmount();
   });
 
+  it('groups tasks under Inbox and alphabetically ordered projects', async () => {
+    const alpha = {...inbox, id: 2, name: 'Alpha'};
+    const zebra = {...inbox, id: 3, name: 'Zebra'};
+    const view = render(
+      <App
+        repository={repository(
+          [
+            task({id: 3, projectId: 3, title: 'Zebra task'}),
+            task({id: 2, projectId: 2, title: 'Alpha task'}),
+            task({id: 1, title: 'Inbox task'}),
+          ],
+          [zebra, inbox, alpha],
+        )}
+        now={now}
+        dimensions={{columns: 100, rows: 30}}
+      />,
+    );
+
+    const frame = view.lastFrame() ?? '';
+    expect(frame.indexOf('Inbox')).toBeLessThan(frame.indexOf('Alpha'));
+    expect(frame.indexOf('Alpha')).toBeLessThan(frame.indexOf('Zebra'));
+    expect(frame).toContain('Inbox task');
+    expect(frame).toContain('Alpha task');
+    expect(frame).toContain('Zebra task');
+    await send(view, 'j');
+    await expect.poll(() => view.lastFrame()).toContain('Alpha task');
+    view.unmount();
+  });
+
+  it('creates, renames, and deletes an empty project', async () => {
+    let projects = [inbox];
+    const repo = repository([]);
+    repo.listProjects = () => projects;
+    const createProject = vi.fn<ProjectRepository['createProject']>(
+      ({name}) => {
+        const created = {...inbox, id: 2, name};
+        projects = [...projects, created];
+        return created;
+      },
+    );
+    const updateProject = vi.fn<ProjectRepository['updateProject']>(
+      (id, {name}) => {
+        const updated = {
+          ...(projects.find((project) => project.id === id) ?? inbox),
+          name,
+        };
+        projects = projects.map((project) =>
+          project.id === id ? updated : project,
+        );
+        return updated;
+      },
+    );
+    const deleteProject = vi.fn<ProjectRepository['deleteProject']>((id) => {
+      projects = projects.filter((project) => project.id !== id);
+      return true;
+    });
+    repo.createProject = createProject;
+    repo.updateProject = updateProject;
+    repo.deleteProject = deleteProject;
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+
+    await send(view, 'p');
+    await expect.poll(() => view.lastFrame()).toContain('Projects');
+    await send(view, 'n');
+    await send(view, 'Work');
+    await send(view, '\r');
+    await expect.poll(() => view.lastFrame()).toContain('Work');
+    await send(view, 'j');
+    await send(view, 'r');
+    for (let index = 0; index < 4; index += 1) await send(view, '\u007f');
+    await send(view, 'Personal');
+    await send(view, '\r');
+    await expect.poll(() => view.lastFrame()).toContain('Personal');
+    await send(view, 'd');
+    await expect.poll(() => view.lastFrame()).toContain('Delete Personal?');
+    await send(view, 'y');
+    await expect.poll(() => view.lastFrame()).not.toContain('Personal');
+    expect(createProject).toHaveBeenCalledWith({name: 'Work'});
+    expect(updateProject).toHaveBeenCalledWith(2, {name: 'Personal'});
+    expect(deleteProject).toHaveBeenCalledWith(2);
+    view.unmount();
+  });
+
+  it('assigns a new task to the project selected in the form', async () => {
+    const work = {...inbox, id: 2, name: 'Work'};
+    const created = task({id: 1, projectId: 2, title: 'Work task'});
+    const create = vi.fn<TaskRepository['create']>().mockReturnValue(created);
+    const repo = {...repository([], [inbox, work]), create};
+    const view = render(
+      <App repository={repo} now={now} dimensions={{columns: 100, rows: 30}} />,
+    );
+
+    await send(view, 'a');
+    await send(view, 'Work task');
+    await send(view, '\t');
+    await send(view, '\t');
+    await send(view, '\u001B[C');
+    await send(view, '\t');
+    await send(view, '\t');
+    await send(view, '\t');
+    await send(view, '\r');
+    await expect
+      .poll(() => create)
+      .toHaveBeenCalledWith({
+        projectId: 2,
+        title: 'Work task',
+        description: null,
+        priority: null,
+        dueDate: null,
+      });
+    view.unmount();
+  });
+
   it('copies the filtered tasks as CSV in displayed order', async () => {
     const writeText = vi.fn<ClipboardWriter['writeText']>().mockResolvedValue();
     const firstActive = task({id: 1, title: 'Active, first'});
@@ -108,8 +238,10 @@ describe('App', () => {
     await send(view, 'c');
     await expect.poll(() => writeText).toHaveBeenCalledOnce();
     const csv = writeText.mock.calls[0]?.[0] ?? '';
-    expect(csv).toContain('id,title,description,priority');
-    expect(csv).toContain('1,"Active, first"');
+    expect(csv).toContain(
+      'id,projectId,projectName,title,description,priority',
+    );
+    expect(csv).toContain('1,1,Inbox,"Active, first"');
     expect(csv.indexOf('Active, first')).toBeLessThan(
       csv.indexOf('Active second'),
     );
@@ -137,7 +269,7 @@ describe('App', () => {
     await expect
       .poll(() => writeText)
       .toHaveBeenCalledWith(
-        'id,title,description,priority,dueDate,completedAt,createdAt,updatedAt\r\n',
+        'id,projectId,projectName,title,description,priority,dueDate,completedAt,createdAt,updatedAt\r\n',
       );
     await expect
       .poll(() => view.lastFrame())
@@ -182,6 +314,7 @@ describe('App', () => {
     await send(view, '\r');
     await send(view, 'Second line');
     await send(view, '\t');
+    await send(view, '\t');
     await send(view, '\u001B[C');
     await send(view, '\t');
     await send(view, 'tomorrow');
@@ -191,6 +324,7 @@ describe('App', () => {
     await expect
       .poll(() => create)
       .toHaveBeenCalledWith({
+        projectId: 1,
         title: 'Write docs',
         description: 'First line\nSecond line',
         priority: 1,
@@ -209,6 +343,7 @@ describe('App', () => {
     await send(view, 'a');
     await expect.poll(() => view.lastFrame()).toContain('Add task');
     await send(view, 'Keep this title');
+    await send(view, '\t');
     await send(view, '\t');
     await send(view, '\t');
     await send(view, '\t');
@@ -242,6 +377,7 @@ describe('App', () => {
     await send(view, '\t');
     for (let index = 0; index < 5; index += 1) await send(view, '\u007f');
     await send(view, '\t');
+    await send(view, '\t');
     for (let index = 0; index < 3; index += 1) await send(view, '\u001B[D');
     await send(view, '\t');
     for (let index = 0; index < 10; index += 1) await send(view, '\u007f');
@@ -251,6 +387,7 @@ describe('App', () => {
     await expect
       .poll(() => update)
       .toHaveBeenCalledWith(4, {
+        projectId: 1,
         title: 'Old titleq',
         description: null,
         priority: null,
@@ -463,6 +600,7 @@ describe('App', () => {
       />,
     );
     await send(view, 'a');
+    await send(view, '\t');
     await send(view, '\t');
     await send(view, '\t');
     expect(view.lastFrame()).toContain('Left/Right or Space to change');

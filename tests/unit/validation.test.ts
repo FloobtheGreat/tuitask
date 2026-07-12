@@ -1,6 +1,9 @@
 import {describe, expect, it} from 'vitest';
 import {InvalidDueDateError, parseDueDate} from '../../src/domain/dates.js';
-import {normalizeTaskInput} from '../../src/domain/validation.js';
+import {
+  normalizeProjectInput,
+  normalizeTaskInput,
+} from '../../src/domain/validation.js';
 
 const now = new Date(2026, 11, 31, 23, 30);
 
@@ -9,6 +12,7 @@ describe('task validation', () => {
     expect(
       normalizeTaskInput(
         {
+          projectId: 1,
           title: '  Write tests  ',
           description: '  first line\nsecond line  ',
           priority: 3,
@@ -17,6 +21,7 @@ describe('task validation', () => {
         now,
       ),
     ).toEqual({
+      projectId: 1,
       title: 'Write tests',
       description: 'first line\nsecond line',
       priority: 3,
@@ -26,7 +31,13 @@ describe('task validation', () => {
 
   it('turns blank optional text into null', () => {
     const result = normalizeTaskInput(
-      {title: 'Task', description: ' \n ', priority: null, dueDate: ' '},
+      {
+        projectId: 1,
+        title: 'Task',
+        description: ' \n ',
+        priority: null,
+        dueDate: ' ',
+      },
       now,
     );
     expect(result.description).toBeNull();
@@ -36,6 +47,7 @@ describe('task validation', () => {
   it('rejects blank titles and invalid priorities', () => {
     expect(() =>
       normalizeTaskInput({
+        projectId: 1,
         title: '  ',
         description: null,
         priority: null,
@@ -44,6 +56,7 @@ describe('task validation', () => {
     ).toThrow('Title is required');
     expect(() =>
       normalizeTaskInput({
+        projectId: 1,
         title: 'Task',
         description: null,
         // @ts-expect-error Testing runtime validation.
@@ -51,6 +64,15 @@ describe('task validation', () => {
         dueDate: null,
       }),
     ).toThrow();
+  });
+});
+
+describe('project validation', () => {
+  it('trims names and rejects blank projects', () => {
+    expect(normalizeProjectInput({name: '  Work  '})).toEqual({name: 'Work'});
+    expect(() => normalizeProjectInput({name: '  '})).toThrow(
+      'Project name is required',
+    );
   });
 });
 

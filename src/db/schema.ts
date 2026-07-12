@@ -5,12 +5,30 @@ import {
   integer,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
+
+export const projects = sqliteTable(
+  'projects',
+  {
+    id: integer('id').primaryKey({autoIncrement: true}),
+    name: text('name').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    check('projects_name_check', sql`length(trim(${table.name})) > 0`),
+    uniqueIndex('idx_projects_name_unique').on(sql`lower(${table.name})`),
+  ],
+);
 
 export const tasks = sqliteTable(
   'tasks',
   {
     id: integer('id').primaryKey({autoIncrement: true}),
+    projectId: integer('project_id')
+      .notNull()
+      .references(() => projects.id, {onDelete: 'restrict'}),
     title: text('title').notNull(),
     description: text('description'),
     priority: integer('priority'),
@@ -31,7 +49,9 @@ export const tasks = sqliteTable(
     ),
     index('idx_tasks_completed_due').on(table.completedAt, table.dueDate),
     index('idx_tasks_priority').on(table.priority),
+    index('idx_tasks_project').on(table.projectId),
   ],
 );
 
 export type TaskRow = typeof tasks.$inferSelect;
+export type ProjectRow = typeof projects.$inferSelect;

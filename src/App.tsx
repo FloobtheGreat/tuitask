@@ -4,13 +4,20 @@ import {systemClipboard, type ClipboardWriter} from './clipboard.js';
 import {FilterBar} from './components/FilterBar.js';
 import {ConfirmDialog} from './components/ConfirmDialog.js';
 import {HelpOverlay} from './components/HelpOverlay.js';
+import {ProjectManager} from './components/ProjectManager.js';
 import {StatusBar} from './components/StatusBar.js';
 import {TaskDetails} from './components/TaskDetails.js';
 import {TaskList} from './components/TaskList.js';
 import {TaskForm} from './components/TaskForm.js';
 import {filterAndSortTasks} from './domain/sorting.js';
 import {tasksToCsv} from './domain/csv.js';
-import type {TaskRepository} from './domain/task.js';
+import {
+  sortProjects,
+  type Project,
+  type ProjectRepository,
+  type ProjectTaskGroup,
+} from './domain/project.js';
+import type {Task, TaskFilter, TaskRepository} from './domain/task.js';
 import {
   appReducer,
   nextFilter,
@@ -20,7 +27,7 @@ import {
 
 type Dimensions = {columns: number; rows: number};
 type Props = {
-  repository: TaskRepository;
+  repository: TaskRepository & ProjectRepository;
   now?: Date;
   dimensions?: Dimensions;
   clipboard?: ClipboardWriter;
@@ -30,7 +37,28 @@ type Screen =
   | {name: 'add'}
   | {name: 'edit'; taskId: number}
   | {name: 'confirm-delete'; taskId: number}
+  | {name: 'projects'}
   | {name: 'help'};
+
+function groupTasks(
+  tasks: readonly Task[],
+  projects: readonly Project[],
+  filter: TaskFilter,
+  now: Date,
+): ProjectTaskGroup<Task>[] {
+  return sortProjects(projects).flatMap((project) => {
+    const projectTasks = filterAndSortTasks(
+      tasks.filter(({projectId}) => projectId === project.id),
+      filter,
+      now,
+    );
+    return projectTasks.length === 0 ? [] : [{project, tasks: projectTasks}];
+  });
+}
+
+function flattenGroups(groups: readonly ProjectTaskGroup<Task>[]): Task[] {
+  return groups.flatMap(({tasks}) => tasks);
+}
 
 export function App({
   repository,
@@ -49,9 +77,11 @@ export function App({
   const [state, dispatch] = useReducer(appReducer, undefined, (): AppState => {
     try {
       const tasks = repository.list();
-      const visible = filterAndSortTasks(tasks, 'active', now);
+      const projects = repository.listProjects();
+      const visible = flattenGroups(groupTasks(tasks, projects, 'active', now));
       return {
         tasks,
+        projects,
         filter: 'active',
         selectedTaskId: recoverSelection(visible, null),
         error: null,
@@ -59,15 +89,20 @@ export function App({
     } catch (error) {
       return {
         tasks: [],
+        projects: [],
         filter: 'active',
         selectedTaskId: null,
         error: error instanceof Error ? error.message : 'Unable to load tasks',
       };
     }
   });
+  const visibleGroups = useMemo(
+    () => groupTasks(state.tasks, state.projects, state.filter, now),
+    [now, state.filter, state.projects, state.tasks],
+  );
   const visibleTasks = useMemo(
-    () => filterAndSortTasks(state.tasks, state.filter, now),
-    [now, state.filter, state.tasks],
+    () => flattenGroups(visibleGroups),
+    [visibleGroups],
   );
   const selectedTask =
     visibleTasks.find(({id}) => id === state.selectedTaskId) ?? null;
@@ -92,15 +127,18 @@ export function App({
         dispatch({type: 'move-selection', offset: 1, visibleTasks});
       }
       if (input === 'f') {
-        const nextTasks = filterAndSortTasks(
-          state.tasks,
-          nextFilter(state.filter),
-          now,
+        const nextTasks = flattenGroups(
+          groupTasks(
+            state.tasks,
+            state.projects,
+            nextFilter(state.filter),
+            now,
+          ),
         );
         dispatch({type: 'cycle-filter', visibleTasks: nextTasks});
       }
       if (input === 'c') {
-        void clipboard.writeText(tasksToCsv(visibleTasks)).then(
+        void clipboard.writeText(tasksToCsv(visibleTasks, state.projects)).then(
           () => {
             setCopyResult({
               message: `Copied ${visibleTasks.length} task(s) to clipboard`,
@@ -120,6 +158,7 @@ export function App({
         );
       }
       if (input === 'a') setScreen({name: 'add'});
+      if (input === 'p') setScreen({name: 'projects'});
       if (input === 'e' && selectedTask !== null) {
         setScreen({name: 'edit', taskId: selectedTask.id});
       }
@@ -136,7 +175,9 @@ export function App({
             ...state.tasks.filter(({id}) => id !== saved.id),
             saved,
           ];
-          const nextTasks = filterAndSortTasks(tasks, state.filter, now);
+          const nextTasks = flattenGroups(
+            groupTasks(tasks, state.projects, state.filter, now),
+          );
           dispatch({
             type: 'replace-tasks',
             tasks,
@@ -153,7 +194,9 @@ export function App({
           } catch {
             // Keep the last known persisted view when a refresh also fails.
           }
-          const nextTasks = filterAndSortTasks(tasks, state.filter, now);
+          const nextTasks = flattenGroups(
+            groupTasks(tasks, state.projects, state.filter, now),
+          );
           dispatch({
             type: 'replace-tasks',
             tasks,
@@ -185,6 +228,60 @@ export function App({
     if (screen.name === 'help') {
       return <HelpOverlay onClose={() => setScreen({name: 'list'})} />;
     }
+    if (screen.name === 'projects') {
+      const refreshProjects = () => {
+        dispatch({
+          type: 'replace-projects',
+          projects: repository.listProjects(),
+        });
+      };
+      return (
+        <Box flexDirection="column">
+          <Text bold color="cyan">
+            tuitask
+          </Text>
+          <ProjectManager
+            projects={state.projects}
+            onClose={() => setScreen({name: 'list'})}
+            onCreate={(name) => {
+              try {
+                repository.createProject({name});
+                refreshProjects();
+                return null;
+              } catch (error) {
+                return error instanceof Error
+                  ? error.message
+                  : 'Unable to create project';
+              }
+            }}
+            onRename={(id, name) => {
+              try {
+                repository.updateProject(id, {name});
+                refreshProjects();
+                return null;
+              } catch (error) {
+                return error instanceof Error
+                  ? error.message
+                  : 'Unable to rename project';
+              }
+            }}
+            onDelete={(id) => {
+              try {
+                if (!repository.deleteProject(id)) {
+                  return `Project ${id} was not found`;
+                }
+                refreshProjects();
+                return null;
+              } catch (error) {
+                return error instanceof Error
+                  ? error.message
+                  : 'Unable to delete project';
+              }
+            }}
+          />
+        </Box>
+      );
+    }
     if (screen.name === 'confirm-delete') {
       const task = state.tasks.find(({id}) => id === screen.taskId);
       if (task === undefined) {
@@ -203,10 +300,8 @@ export function App({
               try {
                 if (!repository.delete(task.id)) {
                   const tasks = repository.list();
-                  const nextTasks = filterAndSortTasks(
-                    tasks,
-                    state.filter,
-                    now,
+                  const nextTasks = flattenGroups(
+                    groupTasks(tasks, state.projects, state.filter, now),
                   );
                   dispatch({
                     type: 'replace-tasks',
@@ -222,7 +317,9 @@ export function App({
                   return null;
                 }
                 const tasks = state.tasks.filter(({id}) => id !== task.id);
-                const nextTasks = filterAndSortTasks(tasks, state.filter, now);
+                const nextTasks = flattenGroups(
+                  groupTasks(tasks, state.projects, state.filter, now),
+                );
                 dispatch({
                   type: 'replace-tasks',
                   tasks,
@@ -255,6 +352,7 @@ export function App({
         </Text>
         <TaskForm
           {...(editedTask === undefined ? {} : {task: editedTask})}
+          projects={state.projects}
           now={now}
           onCancel={() => setScreen({name: 'list'})}
           onSave={(input) => {
@@ -303,7 +401,7 @@ export function App({
       <Box flexDirection={wide ? 'row' : 'column'}>
         <Box width={wide ? '50%' : '100%'}>
           <TaskList
-            tasks={visibleTasks}
+            groups={visibleGroups}
             filter={state.filter}
             selectedTaskId={state.selectedTaskId}
             now={now}

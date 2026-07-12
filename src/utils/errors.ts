@@ -5,6 +5,20 @@ export class TaskNotFoundError extends Error {
   }
 }
 
+export class ProjectNotFoundError extends Error {
+  constructor(id: number) {
+    super(`Project ${id} was not found`);
+    this.name = 'ProjectNotFoundError';
+  }
+}
+
+export class ProjectConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProjectConflictError';
+  }
+}
+
 export class DatabaseError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);

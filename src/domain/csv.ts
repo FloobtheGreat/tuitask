@@ -1,7 +1,10 @@
 import type {Task} from './task.js';
+import type {Project} from './project.js';
 
 export const TASK_CSV_HEADERS = [
   'id',
+  'projectId',
+  'projectName',
   'title',
   'description',
   'priority',
@@ -17,9 +20,15 @@ function escapeCsvField(value: string | number | null): string {
   return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-export function tasksToCsv(tasks: readonly Task[]): string {
+export function tasksToCsv(
+  tasks: readonly Task[],
+  projects: readonly Project[] = [],
+): string {
+  const projectNames = new Map(projects.map(({id, name}) => [id, name]));
   const rows = tasks.map((task) => [
     task.id,
+    task.projectId,
+    projectNames.get(task.projectId) ?? '',
     task.title,
     task.description,
     task.priority,

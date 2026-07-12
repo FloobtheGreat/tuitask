@@ -1,6 +1,6 @@
 # tuitask
 
-`tuitask` is a local-first terminal task manager built with TypeScript, React, Ink, and SQLite. Tasks support multiline descriptions, priorities, date-only due dates, completion tracking, automatic ordering, and Active, Completed, and All views. This is all AI.
+`tuitask` is a local-first terminal task manager built with TypeScript, React, Ink, and SQLite. Tasks support projects, multiline descriptions, priorities, date-only due dates, completion tracking, automatic ordering, and Active, Completed, and All views. This is all AI.
 
 ## Requirements
 
@@ -36,10 +36,15 @@ Main list:
 | `d`        | Delete selected task after confirmation |
 | `f`        | Cycle Active, Completed, and All        |
 | `c`        | Copy filtered tasks as CSV              |
+| `p`        | Manage projects                         |
 | `?`        | Open help                               |
 | `q`        | Quit                                    |
 
 Forms use Tab and Shift+Tab to move, Enter to activate the focused control, and Esc to cancel. Enter inserts a newline while the description is focused. Use the arrow keys or Space on the priority field. A `q` entered in a text field is normal text and does not quit.
+
+Tasks are grouped by project with Inbox first and other projects ordered alphabetically. Use `p` to create, rename, or delete projects. Inbox is protected, and a project must be empty before it can be deleted. The Project field in the task form moves tasks between projects.
+
+Use `c` to copy the currently filtered tasks as CSV. The export preserves the grouped display order and includes both project IDs and names.
 
 Delete confirmation defaults to Cancel. Press `y` to confirm, `n` or Esc to cancel, or use Tab and Enter to choose explicitly.
 

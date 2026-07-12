@@ -8,6 +8,7 @@ import type {Task} from '../../src/domain/task.js';
 
 const task = (id: number): Task => ({
   id,
+  projectId: 1,
   title: `Task ${id}`,
   description: null,
   priority: null,

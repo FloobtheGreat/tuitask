@@ -2,15 +2,23 @@ import {useState} from 'react';
 import {Box, Text, useInput} from 'ink';
 import {ZodError} from 'zod';
 import {InvalidDueDateError} from '../domain/dates.js';
+import {sortProjects, type Project} from '../domain/project.js';
 import type {CreateTaskInput, Priority, Task} from '../domain/task.js';
 import {normalizeTaskInput} from '../domain/validation.js';
 
 type Field =
-  'title' | 'description' | 'priority' | 'dueDate' | 'save' | 'cancel';
+  | 'title'
+  | 'description'
+  | 'project'
+  | 'priority'
+  | 'dueDate'
+  | 'save'
+  | 'cancel';
 type Errors = Partial<Record<'title' | 'dueDate' | 'form', string>>;
 const FIELDS: readonly Field[] = [
   'title',
   'description',
+  'project',
   'priority',
   'dueDate',
   'save',
@@ -21,15 +29,20 @@ const PRIORITY_NAMES = {1: 'Low', 2: 'Medium', 3: 'High'} as const;
 
 type Props = {
   task?: Task;
+  projects: readonly Project[];
   now: Date;
   onSave: (input: CreateTaskInput) => string | null;
   onCancel: () => void;
 };
 
-export function TaskForm({task, now, onSave, onCancel}: Props) {
+export function TaskForm({task, projects, now, onSave, onCancel}: Props) {
+  const orderedProjects = sortProjects(projects);
   const [fieldIndex, setFieldIndex] = useState(0);
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
+  const [projectId, setProjectId] = useState(
+    task?.projectId ?? orderedProjects[0]?.id ?? 1,
+  );
   const [priority, setPriority] = useState<Priority | null>(
     task?.priority ?? null,
   );
@@ -46,7 +59,7 @@ export function TaskForm({task, now, onSave, onCancel}: Props) {
     setErrors({});
     try {
       const input = normalizeTaskInput(
-        {title, description, priority, dueDate},
+        {projectId, title, description, priority, dueDate},
         now,
       );
       const error = onSave(input);
@@ -87,6 +100,22 @@ export function TaskForm({task, now, onSave, onCancel}: Props) {
         PRIORITIES[Math.min(PRIORITIES.length - 1, index + 1)] ?? null,
       );
     }
+    if (field === 'project' && (key.leftArrow || key.upArrow)) {
+      const index = orderedProjects.findIndex(({id}) => id === projectId);
+      return setProjectId(
+        orderedProjects[Math.max(0, index - 1)]?.id ?? projectId,
+      );
+    }
+    if (
+      field === 'project' &&
+      (key.rightArrow || key.downArrow || input === ' ')
+    ) {
+      const index = orderedProjects.findIndex(({id}) => id === projectId);
+      return setProjectId(
+        orderedProjects[Math.min(orderedProjects.length - 1, index + 1)]?.id ??
+          projectId,
+      );
+    }
     if (key.backspace || key.delete) {
       if (field === 'title') setTitle((value) => value.slice(0, -1));
       if (field === 'description')
@@ -111,6 +140,13 @@ export function TaskForm({task, now, onSave, onCancel}: Props) {
       <Text inverse={field === 'description'}>
         {marker('description')} Description: {description || 'No description'}
       </Text>
+      <Text inverse={field === 'project'}>
+        {marker('project')} Project:{' '}
+        {orderedProjects.find(({id}) => id === projectId)?.name ?? 'Inbox'}
+      </Text>
+      {field === 'project' && (
+        <Text dimColor> Left/Right or Space to change project</Text>
+      )}
       <Text inverse={field === 'priority'}>
         {marker('priority')} Priority:{' '}
         {priority === null ? 'None' : PRIORITY_NAMES[priority]}

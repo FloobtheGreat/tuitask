@@ -1,7 +1,9 @@
 import type {Task, TaskFilter} from '../domain/task.js';
+import type {Project} from '../domain/project.js';
 
 export type AppState = {
   tasks: Task[];
+  projects: Project[];
   filter: TaskFilter;
   selectedTaskId: number | null;
   error: string | null;
@@ -11,6 +13,7 @@ export type AppAction =
   | {type: 'select'; taskId: number}
   | {type: 'move-selection'; offset: -1 | 1; visibleTasks: readonly Task[]}
   | {type: 'cycle-filter'; visibleTasks: readonly Task[]}
+  | {type: 'replace-projects'; projects: Project[]}
   | {
       type: 'replace-tasks';
       tasks: Task[];
@@ -54,6 +57,9 @@ export function nextFilter(filter: TaskFilter): TaskFilter {
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
+  if (action.type === 'replace-projects') {
+    return {...state, projects: action.projects};
+  }
   if (action.type === 'replace-tasks') {
     return {
       ...state,

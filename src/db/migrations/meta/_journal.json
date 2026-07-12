@@ -8,6 +8,13 @@
       "when": 1783743286314,
       "tag": "0000_spooky_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1783898923809,
+      "tag": "0001_small_santa_claus",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,7 @@ export function HelpOverlay({onClose}: {onClose: () => void}) {
       <Text>Up/k Previous task Down/j Next task</Text>
       <Text>a Add e Edit Space Complete or reopen</Text>
       <Text>d Delete f Cycle Active, Completed, All c Copy CSV</Text>
-      <Text>? Help q Quit</Text>
+      <Text>p Manage projects ? Help q Quit</Text>
       <Text bold>Forms</Text>
       <Text>Tab/Shift+Tab Move Enter Select Esc Cancel</Text>
       <Text>Priority: arrows or Space Description: Enter adds a line</Text>

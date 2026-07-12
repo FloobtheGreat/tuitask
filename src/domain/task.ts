@@ -3,6 +3,7 @@ export type TaskFilter = 'active' | 'completed' | 'all';
 
 export type Task = {
   id: number;
+  projectId: number;
   title: string;
   description: string | null;
   priority: Priority | null;
@@ -13,6 +14,7 @@ export type Task = {
 };
 
 export type CreateTaskInput = {
+  projectId: number;
   title: string;
   description: string | null;
   priority: Priority | null;
