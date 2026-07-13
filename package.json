@@ -15,7 +15,7 @@
   },
   "scripts": {
     "dev": "tsx src/cli.tsx",
-    "build": "tsc -p tsconfig.build.json && mkdir -p dist/db/migrations && cp -R src/db/migrations/. dist/db/migrations && chmod +x dist/cli.js",
+    "build": "node scripts/build.mjs",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
