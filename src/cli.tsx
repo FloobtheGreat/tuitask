@@ -5,6 +5,10 @@ import {render} from 'ink';
 import {App} from './App.js';
 import {openDatabase} from './db/client.js';
 import {SQLiteTaskRepository} from './db/taskRepository.js';
+import ansiEscapes from 'ansi-escapes';
+
+process.stdout.write(ansiEscapes.clearViewport);
+process.stdout.write(ansiEscapes.cursorTo(0, 0));
 
 async function main(): Promise<void> {
   const connection = openDatabase();
