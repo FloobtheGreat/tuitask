@@ -118,15 +118,15 @@ export function App({
 
   useInput(
     (input, key) => {
-      if (input !== 'c') setCopyResult(null);
-      if (input === 'q') exit();
-      if (key.upArrow || input === 'k') {
+      if (input.toLowerCase() !== 'c') setCopyResult(null);
+      if (input.toLowerCase() === 'q') exit();
+      if (key.upArrow || input.toLowerCase() === 'k') {
         dispatch({type: 'move-selection', offset: -1, visibleTasks});
       }
-      if (key.downArrow || input === 'j') {
+      if (key.downArrow || input.toLowerCase() === 'j') {
         dispatch({type: 'move-selection', offset: 1, visibleTasks});
       }
-      if (input === 'f') {
+      if (input.toLowerCase() === 'f') {
         const nextTasks = flattenGroups(
           groupTasks(
             state.tasks,
@@ -137,7 +137,7 @@ export function App({
         );
         dispatch({type: 'cycle-filter', visibleTasks: nextTasks});
       }
-      if (input === 'c') {
+      if (input.toLowerCase() === 'c') {
         void clipboard.writeText(tasksToCsv(visibleTasks, state.projects)).then(
           () => {
             setCopyResult({
@@ -157,9 +157,9 @@ export function App({
           },
         );
       }
-      if (input === 'a') setScreen({name: 'add'});
-      if (input === 'p') setScreen({name: 'projects'});
-      if (input === 'e' && selectedTask !== null) {
+      if (input.toLowerCase() === 'a') setScreen({name: 'add'});
+      if (input.toLowerCase() === 'p') setScreen({name: 'projects'});
+      if (input.toLowerCase() === 'e' && selectedTask !== null) {
         setScreen({name: 'edit', taskId: selectedTask.id});
       }
       if (input === ' ' && selectedTask !== null) {
@@ -212,10 +212,10 @@ export function App({
           });
         }
       }
-      if (input === 'd' && selectedTask !== null) {
+      if (input.toLowerCase() === 'd' && selectedTask !== null) {
         setScreen({name: 'confirm-delete', taskId: selectedTask.id});
       }
-      if (input === '?') setScreen({name: 'help'});
+      if (input.toLowerCase() === '?') setScreen({name: 'help'});
     },
     {isActive: screen.name === 'list'},
   );
