@@ -9,10 +9,15 @@ export default tseslint.config(
   },
   eslint.configs.recommended,
   {
+    files: ['**/*.{js,mjs,cjs,ts,tsx}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
-      globals: globals.node,
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
